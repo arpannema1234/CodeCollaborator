@@ -7,7 +7,7 @@ import { ACTIONS } from "./Actions.js";
 const app = express();
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "https://code-collaborator-git-main-maniacayus-projects.vercel.app",
     credentials: true,
   })
 );
