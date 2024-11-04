@@ -63,6 +63,7 @@ io.on("connection", (socket) => {
     })
 
   socket.on("disconnecting", () => {
+    console.log("Clients disconnected", socket.id);
     const rooms = [...socket.rooms];
     rooms.forEach((roomId) => {
       socket.in(roomId).emit(ACTIONS.DISCONNECTED, {

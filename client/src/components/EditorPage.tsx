@@ -11,18 +11,19 @@ interface EditorPageProps {
   socketRef: React.RefObject<any>; 
   roomId: string;
   onCodeChange: (code: string) => void;
+  editor : boolean
 }
 
 interface CodeChangePayload {
   code: string; 
 }
 
-const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange } : EditorPageProps) => {
+const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange, editor} : EditorPageProps) => {
   const editorRef = useRef<Editor | null>(null);
 
   useEffect(() => {
-    async function init() {
-      if (editorRef.current) return;
+    function init() {
+      if (editorRef.current  && (!editor)) return;
 
       editorRef.current = CodeMirror.fromTextArea(
         document.getElementById('realtimeEditor') as HTMLTextAreaElement,
@@ -36,6 +37,7 @@ const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange
       );
 
       editorRef.current.on('change', (instance, changes) => {
+        console.log('yaha me aa raha hoon', instance.getValue());
         const { origin } = changes;
         const code = instance.getValue();
         onCodeChange(code);
@@ -49,6 +51,10 @@ const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange
     }
 
     init();
+
+    // return () => { 
+    //   editorRef.current = null;
+    // } 
   }, [onCodeChange, roomId, socketRef]);
 
   useEffect(() => {
@@ -62,11 +68,7 @@ const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange
         }
       });
     }
-
-    return () => {
-      socketRef.current.off(ACTIONS.CODE_CHANGE);
-    };
-  }, [socketRef.current]);
+  }, [socketRef.current, editorRef.current]);
 
   return <textarea id="realtimeEditor"></textarea>;
 };

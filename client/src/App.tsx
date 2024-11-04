@@ -1,6 +1,7 @@
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
+import Draw from "./components/Draw";
 import Editor from "./pages/Editor";
 import { Toaster, ToastOptions } from "react-hot-toast";
 

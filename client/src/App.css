@@ -147,3 +147,7 @@ footer a{
   line-height: 1.6;
   padding-top: 20px;
 }
+.editorWrap {
+  overflow: hidden;
+  height: 100%;
+}

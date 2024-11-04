@@ -6,6 +6,7 @@
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
+    "@tldraw/sync": "^3.4.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.8.6",
     "@types/react": "^18.3.12",
@@ -19,6 +20,7 @@
     "react-router-dom": "^6.27.0",
     "react-scripts": "5.0.1",
     "socket.io-client": "^4.8.1",
+    "tldraw": "^3.4.0",
     "typescript": "^4.9.5",
     "uuid": "^11.0.2",
     "web-vitals": "^2.1.4"

@@ -7,7 +7,7 @@ interface socketOptions {
     transports : string[],
 }
 
-export const initSocket = async () : Promise<Socket> => {
+export const initSocket = async() : Promise<Socket> => {
     const options: socketOptions = {
         'force new connection': true,
         reconnectionAttempt: 'Infinity',
