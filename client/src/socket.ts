@@ -1,13 +1,13 @@
 export const initSocket = (roomId: string): WebSocket => {
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || "127.0.0.1:8000";
-    const wsUrl = `ws://${backendUrl}/ws/quiz/${roomId}/`;
-    console.log(process.env.REACT_APP_BACKEND_URL);
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://127.0.0.1:8000";
 
+    // Convert backend URL to WebSocket protocol
+    const wsProtocol = backendUrl.startsWith("https") ? "wss" : "ws";
+    const wsUrl = `${wsProtocol}://${new URL(backendUrl).host}/ws/quiz/${roomId}/`;
 
     console.log(`🟢 WebSocket attempting connection to: ${wsUrl}`);
 
     const socket = new WebSocket(wsUrl);
-    console.log(socket);
 
     socket.onopen = () => console.log("✅ WebSocket Connected!");
     socket.onerror = (err) => console.error("❌ WebSocket Error:", err);
