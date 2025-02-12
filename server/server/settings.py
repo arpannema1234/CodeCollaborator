@@ -6,11 +6,11 @@ SECRET_KEY = "django-insecure-9lofqr(d75^41v9anijlk6#3j4iu!^0gq@=cb12%5^_(f52^@1
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "https://code-collaborator-git-main-maniacayus-projects.vercel.app"]
 
 # WebSocket CORS Settings
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
-CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "https://code-collaborator-git-main-maniacayus-projects.vercel.app"]
+CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "https://code-collaborator-git-main-maniacayus-projects.vercel.app"]
 CORS_ALLOW_CREDENTIALS = True
 
 INSTALLED_APPS = [
