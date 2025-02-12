@@ -1,19 +1,17 @@
-import { io, Socket } from "socket.io-client"
+export const initSocket = (roomId: string): WebSocket => {
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || "127.0.0.1:8000";
+    const wsUrl = `ws://${backendUrl}/ws/quiz/${roomId}/`;
+    console.log(process.env.REACT_APP_BACKEND_URL);
 
-interface socketOptions { 
-    'force new connection': boolean,
-    reconnectionAttempt: string,
-    timeout: number,
-    transports : string[],
-}
 
-export const initSocket = async() : Promise<Socket> => {
-    const options: socketOptions = {
-        'force new connection': true,
-        reconnectionAttempt: 'Infinity',
-        timeout: 10000,
-        transports: ['websocket'],
-    }
-    console.log(process.env.REACT_APP_BACKENED_URL);
-    return io(process.env.REACT_APP_BACKENED_URL as string, options);
+    console.log(`🟢 WebSocket attempting connection to: ${wsUrl}`);
+
+    const socket = new WebSocket(wsUrl);
+    console.log(socket);
+
+    socket.onopen = () => console.log("✅ WebSocket Connected!");
+    socket.onerror = (err) => console.error("❌ WebSocket Error:", err);
+    socket.onclose = (err) => console.warn("🔴 WebSocket Disconnected:", err);
+
+    return socket;
 };

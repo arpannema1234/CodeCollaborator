@@ -5,70 +5,68 @@ import "codemirror/theme/dracula.css";
 import "codemirror/mode/javascript/javascript";
 import "codemirror/addon/edit/closebrackets";
 import "codemirror/addon/edit/closetag";
-import { ACTIONS } from "../Actions"; 
+import { ACTIONS } from "../Actions";
 
 interface EditorPageProps {
-  socketRef: React.RefObject<any>; 
+  socketRef: React.RefObject<WebSocket>;
   roomId: string;
   onCodeChange: (code: string) => void;
-  editor : boolean
+  latestCode: string;
 }
 
 interface CodeChangePayload {
-  code: string; 
+  action: string;
+  code: string;
 }
 
-const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange, editor} : EditorPageProps) => {
+const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange, latestCode }) => {
   const editorRef = useRef<Editor | null>(null);
 
   useEffect(() => {
-    function init() {
-      if (editorRef.current  && (!editor)) return;
+    function initEditor() {
+      if (editorRef.current) return;
 
-      editorRef.current = CodeMirror.fromTextArea(
-        document.getElementById('realtimeEditor') as HTMLTextAreaElement,
-        {
-          mode: { name: 'javascript', json: true },
-          theme: 'dracula',
-          autoCloseTags: true,
-          autoCloseBrackets: true,
-          lineNumbers: true,
-        }
-      );
+      const textarea = document.getElementById("realtimeEditor") as HTMLTextAreaElement | null;
+      if (!textarea) return;
 
-      editorRef.current.on('change', (instance, changes) => {
-        console.log('yaha me aa raha hoon', instance.getValue());
+      editorRef.current = CodeMirror.fromTextArea(textarea, {
+        mode: { name: "javascript", json: true },
+        theme: "dracula",
+        autoCloseTags: true,
+        autoCloseBrackets: true,
+        lineNumbers: true,
+      });
+
+      editorRef.current.setValue(latestCode || "");
+
+      editorRef.current.on("change", (instance, changes) => {
         const { origin } = changes;
-        const code = instance.getValue();
-        onCodeChange(code);
-        if (origin !== 'setValue') {
-          socketRef.current.emit(ACTIONS.CODE_CHANGE, {
-            roomId,
-            code,
-          });
+        const newCode = instance.getValue();
+
+        if (origin !== "setValue") {
+          onCodeChange(newCode);
+
+          if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(
+              JSON.stringify({
+                action: ACTIONS.CODE_CHANGE,
+                roomId,
+                code: newCode,
+              })
+            );
+          }
         }
       });
     }
 
-    init();
-
-    // return () => { 
-    //   editorRef.current = null;
-    // } 
-  }, [onCodeChange, roomId, socketRef]);
+    initEditor();
+  }, []);
 
   useEffect(() => {
-    console.log(socketRef.current);
-    if (socketRef.current) {
-      
-      socketRef.current.on(ACTIONS.CODE_CHANGE, (payload: CodeChangePayload) => { 
-        const { code } = payload; 
-        if (code !== null && editorRef.current) {
-          editorRef.current.setValue(code);
-        }
-      });
+    if (editorRef.current && latestCode !== editorRef.current.getValue()) {
+      editorRef.current.setValue(latestCode);
     }
-  }, [socketRef.current, editorRef.current]);
+  }, [latestCode]);
 
   return <textarea id="realtimeEditor"></textarea>;
 };

@@ -11,8 +11,8 @@ import {
   Navigate,
 } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Socket } from "socket.io-client";
 
+// ✅ Define Types
 interface ClientProps {
   socketId: string;
   username: string;
@@ -34,81 +34,92 @@ interface DisconnectPayload {
 }
 
 const Editor: React.FC = () => {
-  const socketRef = useRef<Socket | null>(null);
-  const codeRef = useRef<string | null>(null);
+  const socketRef = useRef<WebSocket | null>(null); // ✅ Explicitly define WebSocket type
+  const codeRef = useRef<string>(""); // ✅ Store latest code
   const location = useLocation();
   const { roomId } = useParams<{ roomId: string }>();
   const [clients, setClients] = useState<ClientProps[]>([]);
+  const [code, setCode] = useState<string>(""); // ✅ Track editor updates
   const reactNavigator = useNavigate();
   const [editor, setEditor] = useState<boolean>(true);
-
   const state = location.state as LocationState | null;
 
-  const handleErrors = (err: Error) => {
-    toast.error("Socket connection error, Try Later");
-    reactNavigator("/");
-  };
-
   useEffect(() => {
-    const init = async () => {
-      socketRef.current = await initSocket();
-      console.log(socketRef.current);
+    if (!roomId) return;
 
-      socketRef.current.on("connect_error", handleErrors);
-      socketRef.current.on("connect_failed", handleErrors);
+    // ✅ Initialize WebSocket Connection
+    const socket = initSocket(roomId);
+    socketRef.current = socket;
 
+    socket.onopen = () => {
       if (state?.username) {
-        socketRef.current.emit(ACTIONS.JOIN, {
-          roomId,
-          username: state.username,
-        });
+        socket.send(
+          JSON.stringify({
+            action: ACTIONS.JOIN,
+            roomId,
+            username: state.username,
+          })
+        );
       }
-
-      socketRef.current.on(
-        ACTIONS.JOINED,
-        ({ clients, username, socketId }: JoinPayload) => {
-          if (username !== state?.username) {
-            toast.success(`${username} joined the room`);
-            console.log(`${username} joined the room`);
-          }
-          setClients(clients);
-          socketRef.current?.emit(ACTIONS.SYNC_CODE, {
-            code: codeRef.current,
-            socketId,
-          });
-        }
-      );
-
-      socketRef.current.on(
-        ACTIONS.DISCONNECTED,
-        ({ socketId, username }: DisconnectPayload) => {
-          toast.success(`${username} has left the room`);
-          setClients((prev) =>
-            prev.filter((client) => client.socketId !== socketId)
-          );
-        }
-      );
     };
 
-    init();
+    socket.onclose = () => {
+      console.log("🔴 Disconnected from WebSocket");
+    };
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current.off(ACTIONS.JOINED);
-        socketRef.current.off(ACTIONS.DISCONNECTED);
+      socket.close();
+    };
+  }, [state, roomId, socketRef]);
+
+  // ✅ Handle Switching Between Code & Draw Without Losing Code State
+  useEffect(() => {
+    if (!editor || !socketRef.current) return;
+
+    socketRef.current.onmessage = (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      console.log(data);
+      if(!socketRef.current) return;
+      switch (data.action) {
+        case ACTIONS.JOINED:
+          console.log("✅ ACTIONS.JOINED Triggered");
+          if (data.username !== state?.username) {
+            toast.success(`${data.username} joined the room`);
+          }
+          setClients(data.clients);
+
+          socketRef.current.send(
+            JSON.stringify({
+              action: ACTIONS.SYNC_CODE,
+              code: codeRef.current,
+              socketId: data.socketId,
+            })
+          );
+          break;
+
+        case ACTIONS.DISCONNECTED:
+          toast.success(`${data.username} has left the room`);
+          setClients((prev) =>
+            prev.filter((client) => client.socketId !== data.socketId)
+          );
+          break;
+
+        case ACTIONS.CODE_CHANGE:
+          setCode(data.code);
+          codeRef.current = data.code;
+          break;
       }
     };
-  }, [state, roomId]);
+  }, [editor]);
 
   const copyRoomId = async () => {
     try {
       if (roomId) {
         await navigator.clipboard.writeText(roomId);
-        toast.success("Room ID has been copied to clipboard");
+        toast.success("📋 Room ID copied!");
       }
     } catch (err) {
-      toast.error("Failed to copy room ID");
+      toast.error("❌ Failed to copy Room ID");
     }
   };
 
@@ -119,48 +130,68 @@ const Editor: React.FC = () => {
   if (!location.state) {
     return <Navigate to="/" />;
   }
-
+  console.log(clients);
   return (
-    <div className="mainWrap">
-      <div className="aside">
-        <div className="asideInner">
-          <div className="EditorPageLogo">
-            <img className="logoImg" src="/code-collaborator.png" alt="logo" />
+    <div className="flex max-h-full bg-[#1e1e2e] text-white">
+      <div className="w-1/4 bg-gray-900 p-5 flex flex-col justify-between">
+        <div>
+          <div className="flex justify-center mb-5">
+            <img className="w-32" src="/code-collaborator.png" alt="logo" />
           </div>
-          <h3>Connected</h3>
+          <h3 className="text-xl font-bold text-center">Connected Users</h3>
           <div className="clientsList">
             {clients.map((client) => (
               <Client key={client.socketId} username={client.username} />
             ))}
           </div>
         </div>
-        <div className="flex justify-between font-bold ">
-          <span onClick={() => setEditor(true)} className="ml-3 p-3 bg-[#4aee] rounded-lg cursor-pointer">Code</span>
-          <span onClick={ () => setEditor(false)} className="mr-3 p-3 bg-[#4aee] rounded-lg cursor-pointer">Draw</span>
+        <div className="space-y-3">
+          <div className="flex justify-between">
+            <button
+              onClick={() => setEditor(true)}
+              className={`p-3 mr-3 w-1/2 text-center rounded-lg cursor-pointer font-bold transition-all ${
+                editor ? "bg-blue-500 text-white" : "bg-gray-700"
+              }`}
+            >
+              Code
+            </button>
+            <button
+              onClick={() => setEditor(false)}
+              className={`p-3 w-1/2 text-center rounded-lg cursor-pointer font-bold transition-all ${
+                !editor ? "bg-blue-500 text-white" : "bg-gray-700"
+              }`}
+            >
+              Draw
+            </button>
+          </div>
+          <button
+            className="w-full p-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-all"
+            onClick={copyRoomId}
+          >
+            Copy Room ID
+          </button>
+          <button
+            className="w-full p-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all"
+            onClick={leaveRoom}
+          >
+            Leave Room
+          </button>
         </div>
-        <button
-          className="mt-[20px] w-[100%] hover:bg-[#edac4a] hover:transform hover:-translate-y-0.5 border-none p-[10px] rounded-[5px] text-[16px] cursor-pointer font-bold bg-[#edbf4a] transition-all duration-300 ease-in-out"
-          onClick={copyRoomId}
-        >
-          Copy ROOM ID
-        </button>
-        <button className="btn leaveBtn" onClick={leaveRoom}>
-          LEAVE
-        </button>
       </div>
-      <div className="editorWrap">
-        {editor && (
+
+      <div className="flex-1 bg-gray-800 p-5">
+        {editor ? (
           <EditorPage
             socketRef={socketRef}
             roomId={roomId || ""}
-            onCodeChange={(code: string) => {
-              codeRef.current = code;
+            onCodeChange={(newCode) => {
+              setCode(newCode);
+              codeRef.current = newCode;
             }}
-            editor={editor}
+            latestCode={code}
           />
-        )}
-        {!editor && (
-          <Draw/>
+        ) : (
+          <Draw />
         )}
       </div>
     </div>
