@@ -5,6 +5,7 @@ export const initSocket = (roomId: string): WebSocket => {
     const wsProtocol = backendUrl.startsWith("https") ? "wss" : "ws";
     const wsUrl = `${wsProtocol}://${new URL(backendUrl).host}/ws/quiz/${roomId}/`;
 
+    
     console.log(`🟢 WebSocket attempting connection to: ${wsUrl}`);
 
     const socket = new WebSocket(wsUrl);
