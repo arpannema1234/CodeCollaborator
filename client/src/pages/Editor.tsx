@@ -110,7 +110,7 @@ const Editor: React.FC = () => {
           break;
       }
     };
-  }, [editor]);
+  }, []);
 
   const copyRoomId = async () => {
     try {

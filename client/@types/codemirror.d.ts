@@ -1,21 +1,29 @@
-// @types/codemirror.d.ts
 declare module "codemirror" {
   export interface Editor {
-    // You can add more methods and properties as needed
-    getValue: () => string;
-    setValue: (value: string) => void;
-    on: (
-      event: string,
-      callback: (instance: Editor, changes: any) => void
-    ) => void;
-    off: (event: string) => void;
+    toTextArea(): void; // More accurate return type (not `unknown`)
+    getValue(): string;
+    setValue(value: string): void;
+    on(event: string, callback: (instance: Editor, changes: any) => void): void;
+    off(event: string, callback?: (instance: Editor) => void): void;
   }
 
-  interface CodeMirror {
-    fromTextArea: (textarea: HTMLTextAreaElement, options: any) => Editor;
-    // Add other methods if needed
+  export interface EditorConfiguration {
+    mode?: string | { name: string; json?: boolean };
+    theme?: string;
+    lineNumbers?: boolean;
+    autoCloseTags?: boolean;
+    autoCloseBrackets?: boolean;
+    // Add more options as needed
   }
 
-  const CodeMirror: CodeMirror;
+  declare function CodeMirror(
+    textarea: HTMLTextAreaElement,
+    options?: EditorConfiguration
+  ): Editor;
+
+  declare namespace CodeMirror {
+    function fromTextArea(textarea: HTMLTextAreaElement, options?: EditorConfiguration): Editor;
+  }
+
   export default CodeMirror;
 }

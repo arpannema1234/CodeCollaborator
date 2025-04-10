@@ -14,52 +14,57 @@ interface EditorPageProps {
   latestCode: string;
 }
 
-interface CodeChangePayload {
-  action: string;
-  code: string;
-}
-
-const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange, latestCode }) => {
+const EditorPage: React.FC<EditorPageProps> = ({
+  socketRef,
+  roomId,
+  onCodeChange,
+  latestCode,
+}) => {
   const editorRef = useRef<Editor | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    function initEditor() {
-      if (editorRef.current) return;
+    if (!textareaRef.current || editorRef.current) return;
 
-      const textarea = document.getElementById("realtimeEditor") as HTMLTextAreaElement | null;
-      if (!textarea) return;
+    editorRef.current = CodeMirror.fromTextArea(textareaRef.current, {
+      mode: { name: "javascript", json: true },
+      theme: "dracula",
+      autoCloseTags: true,
+      autoCloseBrackets: true,
+      lineNumbers: true,
+    });
 
-      editorRef.current = CodeMirror.fromTextArea(textarea, {
-        mode: { name: "javascript", json: true },
-        theme: "dracula",
-        autoCloseTags: true,
-        autoCloseBrackets: true,
-        lineNumbers: true,
-      });
+    editorRef.current.setValue(latestCode || "");
 
-      editorRef.current.setValue(latestCode || "");
+    editorRef.current.on("change", (instance, changes) => {
+      const { origin } = changes;
+      const newCode = instance.getValue();
 
-      editorRef.current.on("change", (instance, changes) => {
-        const { origin } = changes;
-        const newCode = instance.getValue();
+      if (origin !== "setValue") {
+        onCodeChange(newCode);
 
-        if (origin !== "setValue") {
-          onCodeChange(newCode);
-
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(
-              JSON.stringify({
-                action: ACTIONS.CODE_CHANGE,
-                roomId,
-                code: newCode,
-              })
-            );
-          }
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          socketRef.current.send(
+            JSON.stringify({
+              action: ACTIONS.CODE_CHANGE,
+              roomId,
+              code: newCode,
+            })
+          );
         }
-      });
-    }
+      }
+    });
 
-    initEditor();
+    return () => {
+      if (editorRef.current) {
+        try {
+          editorRef.current.toTextArea();
+        } catch (error) {
+          console.warn("CodeMirror cleanup error:", error);
+        }
+        editorRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -68,7 +73,7 @@ const EditorPage: React.FC<EditorPageProps> = ({ socketRef, roomId, onCodeChange
     }
   }, [latestCode]);
 
-  return <textarea id="realtimeEditor"></textarea>;
+  return <textarea ref={textareaRef} id="realtimeEditor"></textarea>;
 };
 
 export default EditorPage;
