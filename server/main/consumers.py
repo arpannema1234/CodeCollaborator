@@ -2,19 +2,20 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 
-class QuizConsumer(AsyncWebsocketConsumer):
+class Consumer(AsyncWebsocketConsumer):
     user_room_map = {}  # ✅ Dictionary to store users per room
 
     async def connect(self):
+        print(self.scope["url_route"])
         """Handle new WebSocket connection."""
         self.channel_layer = get_channel_layer()
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-        self.room_group_name = f"quiz_{self.room_name}"
-
+        self.room_group_name = self.room_name
+        print(self.channel_name)
         # Add socket to room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-        print(f"✅ WebSocket Connected: {self.room_name}")
+  
 
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection."""
@@ -36,13 +37,13 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 del self.user_room_map[self.room_name]
 
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
-        print(f"🔴 WebSocket Disconnected: {self.room_name}")
+    
 
     async def receive(self, text_data):
         """Handle messages received from the client."""
         try:
             data = json.loads(text_data)
-            print(f"📩 Received WebSocket Data: {data}")
+           
 
             action = data.get("action")
 
@@ -61,7 +62,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
                     {"socketId": sid, "username": name}
                     for sid, name in self.user_room_map[self.room_name].items()
                 ]
-                print("Recieved")
+         
                 # Notify all users in the room about the new user
                 await self.channel_layer.group_send(
                     self.room_group_name,
@@ -89,8 +90,8 @@ class QuizConsumer(AsyncWebsocketConsumer):
 
     async def user_joined(self, event):
         """Broadcast the joined event to all users in the room."""
-        print("user_joined")
-        print(event["clients"])
+
+
         await self.send(text_data=json.dumps({
             "action": "joined",
             "clients": event["clients"],  # Send updated client list
