@@ -49,12 +49,16 @@ export default function DrawingCanvas({ roomId }: Props) {
       lastSentRef.current = now
 
       const snapshot = editor.store.getSnapshot()
-      socketRef.current?.send(
-        JSON.stringify({
-          type: 'draw_update',
-          payload: snapshot,
-        })
-      )
+
+      // Prevent sending if nothing has changed in the snapshot
+      if (JSON.stringify(snapshot) !== JSON.stringify(editorRef.current?.store.getSnapshot())) {
+        socketRef.current?.send(
+          JSON.stringify({
+            type: 'draw_update',
+            payload: snapshot,
+          })
+        )
+      }
     })
   }
 
