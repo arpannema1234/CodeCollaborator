@@ -18,7 +18,6 @@ class Consumer(AsyncWebsocketConsumer):
   
 
     async def disconnect(self, close_code):
-        """Handle WebSocket disconnection."""
         if self.room_name in self.user_room_map:
             # Remove user from room
             self.user_room_map[self.room_name].pop(self.channel_name, None)
@@ -40,7 +39,7 @@ class Consumer(AsyncWebsocketConsumer):
     
 
     async def receive(self, text_data):
-        """Handle messages received from the client."""
+      
         try:
             data = json.loads(text_data)
            
@@ -89,20 +88,16 @@ class Consumer(AsyncWebsocketConsumer):
             print(f"❌ Unexpected Error: {e}")
 
     async def user_joined(self, event):
-        """Broadcast the joined event to all users in the room."""
-
-
         await self.send(text_data=json.dumps({
             "action": "joined",
-            "clients": event["clients"],  # Send updated client list
-            "username": event["username"],  # Notify about the new user
-            "socket_id": event["socket_id"],  # Send the joining user's ID
+            "clients": event["clients"],  
+            "username": event["username"],  
+            "socket_id": event["socket_id"],  
         }))
 
     async def user_disconnected(self, event):
-        """Notify clients when a user disconnects."""
         await self.send(text_data=json.dumps({"action": "disconnected", **event}))
 
     async def broadcast_code(self, event):
-        """Broadcast code changes to all connected users."""
+    
         await self.send(text_data=json.dumps({"action": "code-change", "code": event["code"]}))

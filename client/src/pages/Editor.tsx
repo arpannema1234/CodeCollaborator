@@ -1,201 +1,162 @@
-import React, { useState, useRef, useEffect } from "react";
-import Client from "../components/Client";
-import EditorPage from "../components/EditorPage";
-import { initSocket } from "../socket";
-import { ACTIONS } from "../Actions";
-import Draw from "../components/Draw";
-import {
-  useLocation,
-  useParams,
-  useNavigate,
-  Navigate,
-} from "react-router-dom";
-import toast from "react-hot-toast";
+import { useEffect, useRef, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { EditorState, Compartment } from '@codemirror/state'
+import { EditorView, basicSetup } from 'codemirror'
+import { javascript } from '@codemirror/lang-javascript'
+import { python } from '@codemirror/lang-python'
+import { java } from '@codemirror/lang-java'
+import { oneDark } from '@codemirror/theme-one-dark'
+import throttle from 'lodash.throttle'
 
-// ✅ Define Types
-interface ClientProps {
-  socketId: string;
-  username: string;
-}
+const Editor = () => {
+  const { roomId } = useParams()
+  const navigate = useNavigate()
+  const editorRef = useRef<HTMLDivElement>(null)
+  const viewRef = useRef<EditorView | null>(null)
+  const socketRef = useRef<WebSocket | null>(null)
+  const suppressRef = useRef(false) // NEW: to prevent echo
 
-interface LocationState {
-  username: string;
-}
+  const [username, setUsername] = useState('')
+  const [fontSize, setFontSize] = useState(14)
+  const [language, setLanguage] = useState('javascript')
 
-interface JoinPayload {
-  clients: ClientProps[];
-  username: string;
-  socketId: string;
-}
+  const languageCompartment = useRef(new Compartment()).current
+  const fontSizeCompartment = useRef(new Compartment()).current
 
-interface DisconnectPayload {
-  socketId: string;
-  username: string;
-}
-
-const Editor: React.FC = () => {
-  const socketRef = useRef<WebSocket | null>(null); // ✅ Explicitly define WebSocket type
-  const codeRef = useRef<string>(""); // ✅ Store latest code
-  const location = useLocation();
-  const { roomId } = useParams<{ roomId: string }>();
-  const [clients, setClients] = useState<ClientProps[]>([]);
-  const [code, setCode] = useState<string>(""); // ✅ Track editor updates
-  const reactNavigator = useNavigate();
-  const [editor, setEditor] = useState<boolean>(true);
-  const state = location.state as LocationState | null;
+  const throttledSend = useRef(
+    throttle((content: string) => {
+      socketRef.current?.send(JSON.stringify({
+        type: 'code_update',
+        payload: content,
+      }))
+    }, 0)
+  ).current
 
   useEffect(() => {
-    if (!roomId) return;
+    const name = localStorage.getItem('username')
+    if (!name) {
+      alert('Username missing. Redirecting to home.')
+      navigate('/')
+      return
+    }
+    setUsername(name)
 
-    // ✅ Initialize WebSocket Connection
-    const socket = initSocket(roomId);
-    socketRef.current = socket;
+    // Setup CodeMirror editor
+    if (editorRef.current && !viewRef.current) {
+      const state = EditorState.create({
+        doc: '',
+        extensions: [
+          basicSetup,
+          oneDark,
+          languageCompartment.of(javascript()),
+          fontSizeCompartment.of(EditorView.theme({ '&': { fontSize: `${fontSize}px` } })),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged && !suppressRef.current) {
+              const content = update.state.doc.toString()
+              throttledSend(content)
+            }
+          }),
+        ],
+      })
 
-    socket.onopen = () => {
-      if (state?.username) {
-        socket.send(
-          JSON.stringify({
-            action: ACTIONS.JOIN,
-            roomId,
-            username: state.username,
+      viewRef.current = new EditorView({
+        state,
+        parent: editorRef.current,
+      })
+    }
+
+    // Setup WebSocket
+    const socket = new WebSocket(`wss://practise-wfzc.onrender.com/ws/editor/${roomId}/`)
+    socketRef.current = socket
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'code_update' && viewRef.current) {
+        const current = viewRef.current.state.doc.toString()
+        if (data.payload !== current) {
+          suppressRef.current = true
+          viewRef.current.dispatch({
+            changes: { from: 0, to: current.length, insert: data.payload },
           })
-        );
+          suppressRef.current = false
+        }
       }
-    };
-
-    socket.onclose = () => {
-      console.log("🔴 Disconnected from WebSocket");
-    };
+    }
 
     return () => {
-      socket.close();
-    };
-  }, [state, roomId, socketRef]);
-
-  // ✅ Handle Switching Between Code & Draw Without Losing Code State
-  useEffect(() => {
-    if (!editor || !socketRef.current) return;
-
-    socketRef.current.onmessage = (event: MessageEvent) => {
-      const data = JSON.parse(event.data);
-      console.log(data);
-      if(!socketRef.current) return;
-      switch (data.action) {
-        case ACTIONS.JOINED:
-          console.log("✅ ACTIONS.JOINED Triggered");
-          if (data.username !== state?.username) {
-            toast.success(`${data.username} joined the room`);
-          }
-          setClients(data.clients);
-
-          socketRef.current.send(
-            JSON.stringify({
-              action: ACTIONS.SYNC_CODE,
-              code: codeRef.current,
-              socketId: data.socketId,
-            })
-          );
-          break;
-
-        case ACTIONS.DISCONNECTED:
-          toast.success(`${data.username} has left the room`);
-          setClients((prev) =>
-            prev.filter((client) => client.socketId !== data.socketId)
-          );
-          break;
-
-        case ACTIONS.CODE_CHANGE:
-          setCode(data.code);
-          codeRef.current = data.code;
-          break;
-      }
-    };
-  }, []);
-
-  const copyRoomId = async () => {
-    try {
-      if (roomId) {
-        await navigator.clipboard.writeText(roomId);
-        toast.success("📋 Room ID copied!");
-      }
-    } catch (err) {
-      toast.error("❌ Failed to copy Room ID");
+      socket.close()
     }
-  };
+  }, [roomId, navigate, fontSizeCompartment, languageCompartment, throttledSend])
 
-  const leaveRoom = () => {
-    reactNavigator("/");
-  };
+  const handleLanguageChange = (lang: string) => {
+    setLanguage(lang)
+    const extension = lang === 'python'
+      ? python()
+      : lang === 'java'
+        ? java()
+        : javascript()
 
-  if (!location.state) {
-    return <Navigate to="/" />;
+    viewRef.current?.dispatch({
+      effects: languageCompartment.reconfigure(extension),
+    })
   }
-  console.log(clients);
+
+  const handleFontSizeChange = (size: number) => {
+    setFontSize(size)
+    viewRef.current?.dispatch({
+      effects: fontSizeCompartment.reconfigure(
+        EditorView.theme({ '&': { fontSize: `${size}px` } })
+      ),
+    })
+  }
+
   return (
-    <div className="flex max-h-full bg-[#1e1e2e] text-white">
-      <div className="w-1/4 bg-gray-900 p-5 flex flex-col justify-between">
-        <div>
-          <div className="flex justify-center mb-5">
-            <img className="w-32" src="/code-collaborator.png" alt="logo" />
-          </div>
-          <h3 className="text-xl font-bold text-center">Connected Users</h3>
-          <div className="clientsList">
-            {clients.map((client) => (
-              <Client key={client.socketId} username={client.username} />
+    <div className="flex flex-col gap-0 h-screen bg-blue-400">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-[#1E1E1E]">
+        <h2 className="text-lg font-semibold text-white">
+          🏷 Room ID: <span className="text-blue-500">{roomId}</span> | 👤 {username}
+        </h2>
+        <div className="flex gap-3 items-center">
+          <select
+            value={language}
+            onChange={(e) => handleLanguageChange(e.target.value)}
+            className="border rounded px-3 py-1 bg-[#333333] text-white"
+          >
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+          </select>
+          <select
+            value={fontSize}
+            onChange={(e) => handleFontSizeChange(parseInt(e.target.value))}
+            className="border rounded px-3 py-1 bg-[#333333] text-white"
+          >
+            {[12, 14, 16, 18, 20].map(size => (
+              <option key={size} value={size}>{size}px</option>
             ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <button
-              onClick={() => setEditor(true)}
-              className={`p-3 mr-3 w-1/2 text-center rounded-lg cursor-pointer font-bold transition-all ${
-                editor ? "bg-blue-500 text-white" : "bg-gray-700"
-              }`}
-            >
-              Code
-            </button>
-            <button
-              onClick={() => setEditor(false)}
-              className={`p-3 w-1/2 text-center rounded-lg cursor-pointer font-bold transition-all ${
-                !editor ? "bg-blue-500 text-white" : "bg-gray-700"
-              }`}
-            >
-              Draw
-            </button>
-          </div>
+          </select>
           <button
-            className="w-full p-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-all"
-            onClick={copyRoomId}
+            className="bg-gray-100 text-black px-3 py-1 rounded hover:bg-gray-200"
+            onClick={() => navigate('/')}
           >
-            Copy Room ID
+            ⬅️ Home
           </button>
           <button
-            className="w-full p-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all"
-            onClick={leaveRoom}
+            className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+            onClick={() => navigate(`/draw/${roomId}`)}
           >
-            Leave Room
+            ✏️ Go to Drawing
           </button>
         </div>
       </div>
 
-      <div className="flex-1 bg-gray-800 p-5">
-        {editor ? (
-          <EditorPage
-            socketRef={socketRef}
-            roomId={roomId || ""}
-            onCodeChange={(newCode) => {
-              setCode(newCode);
-              codeRef.current = newCode;
-            }}
-            latestCode={code}
-          />
-        ) : (
-          <Draw />
-        )}
-      </div>
+      <div
+        ref={editorRef}
+        className="bg-[#1E1E1E] text-white rounded-md shadow-lg flex-1 overflow-auto"
+        style={{ minHeight: '80vh' }}
+      />
     </div>
-  );
-};
+  )
+}
 
-export default Editor;
+export default Editor
