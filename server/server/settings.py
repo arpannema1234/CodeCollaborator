@@ -1,16 +1,25 @@
 from pathlib import Path
 import os 
+from decouple import config, Csv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-9lofqr(d75^41v9anijlk6#3j4iu!^0gq@=cb12%5^_(f52^@1"
+SECRET_KEY = config('SECRET_KEY')
 
-DEBUG = True
+DEBUG = config('DEBUG', cast=bool)
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "code-collaborator-git-main-maniacayus-projects.vercel.app", "codecollaborator.onrender.com"]
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
+
+# Environment-based URL configuration
+DEV_FRONTEND_URL = config('DEV_FRONTEND_URL')
+PROD_FRONTEND_URL = config('PROD_FRONTEND_URL')
+
+# Use development URL if DEBUG is True, otherwise use production URL
+FRONTEND_URL = DEV_FRONTEND_URL if DEBUG else PROD_FRONTEND_URL
 
 # WebSocket CORS Settings
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "https://code-collaborator-git-main-maniacayus-projects.vercel.app"]
-CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "https://code-collaborator-git-main-maniacayus-projects.vercel.app"]
+CSRF_TRUSTED_ORIGINS = [FRONTEND_URL]
+CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
 CORS_ALLOW_CREDENTIALS = True
 
 INSTALLED_APPS = [
@@ -27,7 +36,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # ✅ Must be at the top
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -60,7 +69,7 @@ ASGI_APPLICATION = "server.asgi.application"
 
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",  # ✅ Fixing missing channel layer
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
 

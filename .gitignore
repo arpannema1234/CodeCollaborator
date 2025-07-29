@@ -1,0 +1,102 @@
+# Root .gitignore for Code Collaborator Project
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Django specific
+server/db.sqlite3
+server/db.sqlite3-journal
+server/media/
+server/staticfiles/
+server/static/
+server/*.log
+server/local_settings.py
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+server/.venv/
+server/venv/
+
+# Node.js dependencies
+client/node_modules/
+node_modules/
+
+# Build outputs
+client/dist/
+client/build/
+
+# Logs
+*.log
+logs/
+client/logs/
+server/logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Coverage reports
+coverage/
+.nyc_output/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Package manager lock files (uncomment if you want to ignore them)
+# client/package-lock.json
+# client/yarn.lock
+
+# Redis dump file
+dump.rdb
+
+# Certificates
+*.pem
+*.key
+*.crt
