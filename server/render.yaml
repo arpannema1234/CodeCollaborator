@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: codecollaborator-backend
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+    startCommand: |
+      daphne -b 0.0.0.0 -p $PORT server.asgi:application
+    envVars:
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEV_FRONTEND_URL
+        value: http://localhost:3000
+      - key: PROD_FRONTEND_URL
+        value: https://code-collaborator-git-main-maniacayus-projects.vercel.app
+      - key: ALLOWED_HOSTS
+        value: codecollaborator.onrender.com,code-collaborator-git-main-maniacayus-projects.vercel.app
+    disk:
+      name: staticfiles
+      mountPath: /opt/render/project/src/staticfiles
+      sizeGB: 1
